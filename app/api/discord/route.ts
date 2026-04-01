@@ -43,7 +43,7 @@ async function getDiscordConfig(): Promise<{
   const supabase = createClient(supabaseUrl, supabaseKey)
   const { data, error } = await supabase.from("website_config").select("*")
 
-    if (error || !data) {
+  if (error || !data) {
     console.error("Error fetching Discord config:", error)
     return {
       token: "",
@@ -64,12 +64,12 @@ async function getDiscordConfig(): Promise<{
     }
   }
 
-    console.log("[Discord] Config loaded - Guild ID:", botConfig.guildId, "Token exists:", !!botConfig.token)
+  console.log("[Discord] Config loaded - Guild ID:", botConfig.guildId, "Token exists:", !!botConfig.token)
 
-    // Temporary: Hardcode guildId for testing
-    botConfig.guildId = "1305896756168364053"
+  // Temporary: Hardcode guildId for testing
+  botConfig.guildId = "1305896756168364053"
 
-    return {
+  return {
     token: botConfig.token,
     clientId: botConfig.clientId,
     guildId: botConfig.guildId,
@@ -106,7 +106,7 @@ async function sendToDiscordChannel(channelId: string, content: string, embeds?:
 // Send DM to user
 async function sendDirectMessage(userId: string, content: string, embeds?: any[], DISCORD_TOKEN: string) {
   console.log("[Rex´s Dinner & Repair] sendDirectMessage called with userId:", userId)
-  
+
   if (!userId || !DISCORD_TOKEN) {
     console.error("[Rex´s Dinner & Repair] Missing userId or token - userId:", !!userId, "token:", !!DISCORD_TOKEN)
     return false
@@ -351,23 +351,23 @@ export async function POST(request: NextRequest) {
           DISCORD_TOKEN
         )
 
-        // if it's a workshop order, also send a duplicate notification so admins watching the orders channel don't miss it
-        // if (isWerkstatt) {
-        //   await sendToDiscordChannel(
-        //     discordConfig.channels.orders,
-        //     "🛠️ | **Werkstatt-Buchung (zusätzlich)**",
-        //     [
-        //       {
-        //         title: "Werkstatt-Buchung erhalten",
-        //         color: 0x6f42c1,
-        //         fields: orderFields,
-        //         timestamp: new Date().toISOString(),
-        //       },
-        //     ],
-        //     DISCORD_TOKEN
-        //   )
-        // }
-        // break
+      // if it's a workshop order, also send a duplicate notification so admins watching the orders channel don't miss it
+      // if (isWerkstatt) {
+      //   await sendToDiscordChannel(
+      //     discordConfig.channels.orders,
+      //     "🛠️ | **Werkstatt-Buchung (zusätzlich)**",
+      //     [
+      //       {
+      //         title: "Werkstatt-Buchung erhalten",
+      //         color: 0x6f42c1,
+      //         fields: orderFields,
+      //         timestamp: new Date().toISOString(),
+      //       },
+      //     ],
+      //     DISCORD_TOKEN
+      //   )
+      // }
+      // break
 
       case "new_review":
         const stars = "⭐".repeat(data.rating)
@@ -429,7 +429,7 @@ export async function POST(request: NextRequest) {
             fields: [
               { name: "Benutzername", value: username, inline: true },
               { name: "Passwort(Nicht Weitergeben!):", value: password, inline: true },
-              { name: "Login-URL", value: "https://rex-dinner-teamstadt.vercel.app/login", inline: false },
+              { name: "Login-URL", value: "rex-dinner-ts.vercel.app/login", inline: false },
             ],
             footer: {
               text: "Bitte ändere dein Passwort beim ersten Login. Bitte gebe keine privaten Daten ein oder Sonstiges. Danke!",
@@ -447,12 +447,12 @@ export async function POST(request: NextRequest) {
             { name: "Betroffener Benutzer", value: revokedUser.username, inline: true },
             { name: "Entfernt von", value: adminName, inline: true },
           ]
-          
+
           // Grund hinzufuegen wenn vorhanden
           if (terminationReason) {
             dmFields.push({ name: "Grund", value: terminationReason, inline: false })
           }
-          
+
           await sendDirectMessage(revokedUser.discordUserId, "🚫 | **Rex Diner - Zugriff entzogen**", [
             {
               title: "Dein Zugriff wurde entzogen",
@@ -472,12 +472,12 @@ export async function POST(request: NextRequest) {
             { name: "Gruppe", value: revokedUser.group, inline: true },
             { name: "Entfernt von", value: adminName, inline: true },
           ]
-          
+
           // Grund auch im Log hinzufuegen
           if (terminationReason) {
             logFields.push({ name: "Grund", value: terminationReason, inline: false })
           }
-          
+
           await sendToDiscordChannel(
             revokedAdminLogsChannel,
             "🚫 **Benutzer-Zugriff entzogen**",
@@ -610,20 +610,20 @@ export async function POST(request: NextRequest) {
 
       case "user_rights_changed":
         const { targetUser, adminName: changedByAdmin, previousGroup, newGroup, previousRank, newRank } = data
-        
+
         // Bestimme ob mehr oder weniger Rechte
         const previousLevel = previousRank?.level || 0
         const newLevel = newRank?.level || 0
         const rightsChange = newLevel > previousLevel ? "mehr" : newLevel < previousLevel ? "weniger" : "gleich viele"
         const changeColor = newLevel > previousLevel ? 0x28a745 : newLevel < previousLevel ? 0xff0000 : 0xffa500
         const changeEmoji = newLevel > previousLevel ? "⬆️ | " : newLevel < previousLevel ? "⬇️ | " : "↔️ | "
-        
+
         // Formatiere Berechtigungen für Anzeige
         const formatPermissions = (permissions: string[]) => {
           if (!permissions || permissions.length === 0) return "Keine"
           if (permissions.includes("all")) return "Vollzugriff"
           return permissions.map(p => {
-            switch(p) {
+            switch (p) {
               case "reservations": return "Reservierungen"
               case "orders": return "Bestellungen"
               case "reviews": return "Bewertungen"
@@ -634,7 +634,7 @@ export async function POST(request: NextRequest) {
             }
           }).join(", ")
         }
-        
+
         if (targetUser.discordUserId) {
           await sendDirectMessage(targetUser.discordUserId, `${changeEmoji} **Rex Diner - Rechte wurden verändert**`, [
             {
@@ -659,7 +659,7 @@ export async function POST(request: NextRequest) {
             },
           ], DISCORD_TOKEN)
         }
-        
+
         // Auch Benachrichtigung an Admin-Logs-Channel senden
         const rightsAdminLogsChannel = discordConfig.channels.adminLogs || discordConfig.channels.reservations
         if (rightsAdminLogsChannel) {
@@ -683,48 +683,48 @@ export async function POST(request: NextRequest) {
           )
         }
 
-            // Öffentliche Ankündigung bei Beförderung/Degradierung (wenn Level sich geändert hat)
-            if (newLevel !== previousLevel) {
-              const announcementsChannel = discordConfig.channels.announcements || ""
-              if (announcementsChannel) {
-                const mentionedUserId = targetUser?.discordUserId ?? data?.discordUserId ?? null
-                const userMention = mentionedUserId ? `<@${mentionedUserId}>` : "Nicht verknüpft"
+        // Öffentliche Ankündigung bei Beförderung/Degradierung (wenn Level sich geändert hat)
+        if (newLevel !== previousLevel) {
+          const announcementsChannel = discordConfig.channels.announcements || ""
+          if (announcementsChannel) {
+            const mentionedUserId = targetUser?.discordUserId ?? data?.discordUserId ?? null
+            const userMention = mentionedUserId ? `<@${mentionedUserId}>` : "Nicht verknüpft"
 
-                if (newLevel > previousLevel) {
-                  // Beförderung Embed
-                  const embed = {
-                    title: "🎉 | Beförderung",
-                    color: 0x28a745,
-                    description: `${userMention} wurde befördert! Herzlichen Glückwunsch!`,
-                    fields: [
-                      { name: "Benutzer", value: targetUser.username, inline: true },
-                      { name: "Rang davor", value: previousRank?.name || previousGroup || "Unbekannt", inline: true },
-                      { name: "Rang danach", value: newRank?.name || newGroup || "Unbekannt", inline: true },
-                      { name: "Geändert von", value: changedByAdmin || "Admin", inline: true },
-                    ],
-                    footer: { text: "Rex Diner - Glückwunsch" },
-                    timestamp: new Date().toISOString(),
-                  }
-                  await sendToDiscordChannel(announcementsChannel, userMention, [embed], DISCORD_TOKEN)
-                } else {
-                  // Degradierung Embed
-                  const embed = {
-                    title: "⚠️ | Degradierung",
-                    color: 0xff0000,
-                    description: `${userMention} wurde herabgestuft. Bitte bei Fragen an das Team wenden.`,
-                    fields: [
-                      { name: "Benutzer", value: targetUser.username, inline: true },
-                      { name: "Rang davor", value: previousRank?.name || previousGroup || "Unbekannt", inline: true },
-                      { name: "Rang danach", value: newRank?.name || newGroup || "Unbekannt", inline: true },
-                      { name: "Geändert von", value: changedByAdmin || "Admin", inline: true },
-                    ],
-                    footer: { text: "Rex Diner - Information" },
-                    timestamp: new Date().toISOString(),
-                  }
-                  await sendToDiscordChannel(announcementsChannel, userMention, [embed], DISCORD_TOKEN)
-                }
+            if (newLevel > previousLevel) {
+              // Beförderung Embed
+              const embed = {
+                title: "🎉 | Beförderung",
+                color: 0x28a745,
+                description: `${userMention} wurde befördert! Herzlichen Glückwunsch!`,
+                fields: [
+                  { name: "Benutzer", value: targetUser.username, inline: true },
+                  { name: "Rang davor", value: previousRank?.name || previousGroup || "Unbekannt", inline: true },
+                  { name: "Rang danach", value: newRank?.name || newGroup || "Unbekannt", inline: true },
+                  { name: "Geändert von", value: changedByAdmin || "Admin", inline: true },
+                ],
+                footer: { text: "Rex Diner - Glückwunsch" },
+                timestamp: new Date().toISOString(),
               }
+              await sendToDiscordChannel(announcementsChannel, userMention, [embed], DISCORD_TOKEN)
+            } else {
+              // Degradierung Embed
+              const embed = {
+                title: "⚠️ | Degradierung",
+                color: 0xff0000,
+                description: `${userMention} wurde herabgestuft. Bitte bei Fragen an das Team wenden.`,
+                fields: [
+                  { name: "Benutzer", value: targetUser.username, inline: true },
+                  { name: "Rang davor", value: previousRank?.name || previousGroup || "Unbekannt", inline: true },
+                  { name: "Rang danach", value: newRank?.name || newGroup || "Unbekannt", inline: true },
+                  { name: "Geändert von", value: changedByAdmin || "Admin", inline: true },
+                ],
+                footer: { text: "Rex Diner - Information" },
+                timestamp: new Date().toISOString(),
+              }
+              await sendToDiscordChannel(announcementsChannel, userMention, [embed], DISCORD_TOKEN)
             }
+          }
+        }
         break
 
       case "user_added":
@@ -834,6 +834,8 @@ export async function POST(request: NextRequest) {
       case "password_reset":
         // Passwort wurde zurückgesetzt
         const passwordAdminLogsChannel = discordConfig.channels.adminLogs || discordConfig.channels.reservations
+        const newPassword = data.newPassword || data.password || data.resetPassword || data.tempPassword || ""
+        
         if (passwordAdminLogsChannel) {
           await sendToDiscordChannel(
             passwordAdminLogsChannel,
@@ -845,6 +847,7 @@ export async function POST(request: NextRequest) {
                 fields: [
                   { name: "Benutzer", value: data.username, inline: true },
                   { name: "Zurückgesetzt von", value: data.resetBy, inline: true },
+                  { name: "Neues Passwort", value: newPassword || "Nicht verfügbar", inline: true },
                 ],
                 timestamp: new Date().toISOString(),
               },
@@ -856,7 +859,6 @@ export async function POST(request: NextRequest) {
         // Zusätzlich: Sende das neue Passwort per DM an den Benutzer, falls Discord-ID vorhanden
         try {
           const passwordUserId = data.discordUserId
-          const newPassword = data.newPassword || data.password || data.resetPassword || data.tempPassword || ""
 
           if (passwordUserId && newPassword) {
             await sendDirectMessage(passwordUserId, "🔐 | **Rex Diner - Dein neues Passwort**", [
@@ -1116,7 +1118,7 @@ export async function POST(request: NextRequest) {
         const statusOrderUserId = data.discordUserId
         const statusOrder = data.order
         const newStatus = data.newStatus
-        
+
         console.log("[Rex´s Dinner & Repair] Status change - User ID:", statusOrderUserId)
         console.log("[Rex´s Dinner & Repair] Status change - New status:", newStatus)
         console.log("[Rex´s Dinner & Repair] Status change - Order:", statusOrder)
