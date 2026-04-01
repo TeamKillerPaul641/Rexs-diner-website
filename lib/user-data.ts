@@ -34,7 +34,7 @@ export type CustomRank = {
 }
 
 export const DEFAULT_RANKS: { [key: string]: CustomRank } = {
-  owner: { name: "Owner", level: 100, permissions: ["all"] },
+  owner: { name: "Website Entwickler", level: 100, permissions: ["all"] },
   suspendiert: { name: "Suspendiert", level: 0, permissions: [] },
 }
 
@@ -339,6 +339,7 @@ export const setUserSession = (user: User) => {
     localStorage.setItem("currentUser", user.username)
     localStorage.setItem("userGroup", user.group)
     localStorage.setItem("userId", user.id.toString())
+    localStorage.setItem("discordUserId", user.discordUserId || "")
   }
 }
 
@@ -393,30 +394,36 @@ export const getCurrentUser = async (): Promise<User | null> => {
 
 // Benutzer per Discord ID authentifizieren
 export const authenticateUserByDiscord = async (discordUserId: string): Promise<User | null> => {
+  const users = await getUsersByDiscordId(discordUserId)
+  return users.length > 0 ? users[0] : null
+}
+
+export const getUsersByDiscordId = async (discordUserId: string): Promise<User[]> => {
   const supabase = createClient()
-  if (!supabase) return null
+  if (!supabase) return []
   const { data, error } = await supabase
     .from("users")
     .select("*")
-    .eq("discord_user_id", discordUserId)
-    .single()
+    .or(`discord_user_id.eq.${discordUserId},discord_user_id.eq.${parseInt(discordUserId) || 0}`)
 
   if (error || !data) {
-    return null
+    return []
   }
 
-  return {
-    id: data.id,
-    username: data.username,
-    password: data.password,
-    role: data.role,
-    group: data.user_group,
-    mustChangePassword: data.must_change_password,
-    isTemporaryPassword: data.is_temporary_password,
-    discordUserId: data.discord_user_id,
-    image: data.image,
-    dienstvorschriftenAccepted: data.dienstvorschriften_accepted,
-  }
+  return data.map((u) => ({
+    id: u.id,
+    username: u.username,
+    password: u.password,
+    role: u.role,
+    group: u.user_group,
+    mustChangePassword: u.must_change_password,
+    isTemporaryPassword: u.is_temporary_password,
+    discordUserId: u.discord_user_id,
+    image: u.image,
+    dienstvorschriftenAccepted: u.dienstvorschriften_accepted,
+    warningCount: u.warning_count,
+    suspendedUntil: u.suspended_until,
+  }))
 }
 
 // Dienstvorschriften akzeptieren
@@ -495,7 +502,7 @@ export const getWebsiteConfig = async (): Promise<{
     },
     soonProjects: [],
   }
-  
+
   const supabase = createClient()
   if (!supabase) return defaultConfig
   const { data, error } = await supabase.from("website_config").select("*")
@@ -531,7 +538,7 @@ export const saveWebsiteConfig = async (
     console.error("Supabase client not available")
     return false
   }
-  
+
   const { data, error } = await supabase
     .from("website_config")
     .upsert(
@@ -927,7 +934,7 @@ export const saveReview = async (review: { name: string; rating: number; comment
     console.error("Supabase client not available for saveReview")
     return null
   }
-  
+
   const { data, error } = await supabase
     .from("reviews")
     .insert({
@@ -966,7 +973,7 @@ export const deleteReview = async (id: number): Promise<boolean> => {
 export const deleteAllReviews = async (): Promise<boolean> => {
   const supabase = createClient()
   if (!supabase) return false
-  
+
   const { error } = await supabase.from("reviews").delete().neq("id", 0)
 
   if (error) {
@@ -982,7 +989,7 @@ export const saveUsers = async (users: User[]): Promise<boolean> => {
   // Diese Funktion ist für Batch-Updates - aktualisiert alle Benutzer
   const supabase = createClient()
   if (!supabase) return false
-  
+
   for (const user of users) {
     const { error } = await supabase
       .from("users")
@@ -997,13 +1004,13 @@ export const saveUsers = async (users: User[]): Promise<boolean> => {
         discord_user_id: user.discordUserId,
         image: user.image,
       })
-    
+
     if (error) {
       console.error("Error saving user:", error)
       return false
     }
   }
-  
+
   return true
 }
 
@@ -1011,7 +1018,7 @@ export const saveUsers = async (users: User[]): Promise<boolean> => {
 export const saveCustomRanks = async (ranks: { [key: string]: CustomRank }): Promise<boolean> => {
   const supabase = createClient()
   if (!supabase) return false
-  
+
   for (const [key, rank] of Object.entries(ranks)) {
     const { error } = await supabase
       .from("ranks")
@@ -1021,13 +1028,13 @@ export const saveCustomRanks = async (ranks: { [key: string]: CustomRank }): Pro
         level: rank.level,
         permissions: rank.permissions,
       })
-    
+
     if (error) {
       console.error("Error saving rank:", error)
       return false
     }
   }
-  
+
   return true
 }
 
