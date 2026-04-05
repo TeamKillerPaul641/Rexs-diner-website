@@ -18,6 +18,9 @@ export default function MeineWerkstattbuchungenPage() {
 
   useEffect(() => {
     const loadData = async () => {
+      // Small delay to ensure cookies are available after redirect
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
       const session = getDiscordSession()
       if (!session) {
         setIsLoading(false)

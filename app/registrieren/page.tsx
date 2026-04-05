@@ -26,13 +26,19 @@ export default function RegistrierenPage() {
 
   // Discord Session laden
   useEffect(() => {
-    const session = getDiscordSession()
-    if (session) {
-      setDiscordUser(session)
-    } else {
-      // Wenn nicht eingeloggt, zur Discord-Auth weiterleiten
-      window.location.href = "/api/auth/discord?returnTo=/registrieren"
+    const loadSession = async () => {
+      // Small delay to ensure cookies are available after redirect
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      const session = getDiscordSession()
+      if (session) {
+        setDiscordUser(session)
+      } else {
+        // Wenn nicht eingeloggt, zur Discord-Auth weiterleiten
+        window.location.href = "/api/auth/discord?returnTo=/registrieren"
+      }
     }
+    loadSession()
   }, [])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
