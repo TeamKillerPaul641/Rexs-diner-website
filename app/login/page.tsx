@@ -1,0 +1,373 @@
+"use client"
+
+import type React from "react"
+
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
+import { LogIn, AlertCircle, Shield, ScrollText } from "lucide-react"
+import { 
+  type User, 
+  authenticateUser,
+  authenticateUserByDiscord,
+  acceptDienstvorschriften,
+  setUserSession,
+  updateUser
+} from "@/lib/user-data"
+import { getDiscordSession } from "@/lib/discord-session"
+
+export default function LoginPage() {
+  const [username, setUsername] = useState("")
+  const [password, setPassword] = useState("")
+  const [error, setError] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [showPasswordChange, setShowPasswordChange] = useState(false)
+  const [showDienstvorschriften, setShowDienstvorschriften] = useState(false)
+  const [dienstvorschriftenChecked, setDienstvorschriftenChecked] = useState(false)
+  const [newPassword, setNewPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
+  const [currentUser, setCurrentUser] = useState<User | null>(null)
+  const router = useRouter()
+
+  // Discord OAuth Callback aus Cookies verarbeiten
+  useEffect(() => {
+    const session = getDiscordSession()
+    if (session) {
+      handleDiscordLogin(session.id, session.username || "")
+    }
+  }, [])
+
+  const handleDiscordLogin = async (discordId: string, discordUsername: string) => {
+    setIsLoading(true)
+    setError("")
+
+    const user = await authenticateUserByDiscord(discordId)
+
+    if (user) {
+
+      if (user.mustChangePassword || user.isTemporaryPassword) {
+        setCurrentUser(user)
+        setShowPasswordChange(true)
+        setIsLoading(false)
+        return
+      }
+
+      if (!user.dienstvorschriftenAccepted) {
+        setCurrentUser(user)
+        setShowDienstvorschriften(true)
+        setIsLoading(false)
+        return
+      }
+
+      setUserSession(user)
+      router.push("/admin")
+    } else {
+      setError(`Kein Mitarbeiter-Account mit Discord ID ${discordId} gefunden.`)
+    }
+
+    setIsLoading(false)
+  }
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+    setError("")
+
+    try {
+      const user = await authenticateUser(username, password)
+
+      if (user) {
+
+        if (user.mustChangePassword || user.isTemporaryPassword) {
+          setCurrentUser(user)
+          setShowPasswordChange(true)
+          setIsLoading(false)
+          return
+        }
+
+        if (!user.dienstvorschriftenAccepted) {
+          setCurrentUser(user)
+          setShowDienstvorschriften(true)
+          setIsLoading(false)
+          return
+        }
+
+        setUserSession(user)
+        router.push("/admin")
+      } else {
+        setError("Ungueltige Anmeldedaten")
+      }
+    } catch (err) {
+      console.error("Login error:", err)
+      setError("Ein Fehler ist aufgetreten")
+    }
+
+    setIsLoading(false)
+  }
+
+  const handleAcceptDienstvorschriften = async () => {
+    if (!currentUser || !dienstvorschriftenChecked) return
+
+    const success = await acceptDienstvorschriften(currentUser.id)
+    if (success) {
+      setUserSession({ ...currentUser, dienstvorschriftenAccepted: true })
+      router.push("/admin")
+    } else {
+      setError("Fehler beim Akzeptieren der Dienstvorschriften")
+    }
+  }
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError("")
+
+    if (newPassword !== confirmPassword) {
+      setError("Passwoerter stimmen nicht ueberein")
+      return
+    }
+
+    if (newPassword.length < 6) {
+      setError("Passwort muss mindestens 6 Zeichen lang sein")
+      return
+    }
+
+    if (currentUser) {
+      try {
+        const success = await updateUser(currentUser.id, {
+          password: newPassword,
+          mustChangePassword: false,
+          isTemporaryPassword: false
+        })
+
+        if (success) {
+          const updatedUser = { ...currentUser, password: newPassword, mustChangePassword: false, isTemporaryPassword: false }
+          
+          if (!updatedUser.dienstvorschriftenAccepted) {
+            setCurrentUser(updatedUser)
+            setShowPasswordChange(false)
+            setShowDienstvorschriften(true)
+            return
+          }
+
+          setUserSession(updatedUser)
+          router.push("/admin")
+        } else {
+          setError("Fehler beim Aendern des Passworts")
+        }
+      } catch (err) {
+        console.error("Password change error:", err)
+        setError("Ein Fehler ist aufgetreten")
+      }
+    }
+  }
+
+  // Dienstvorschriften Screen
+  if (showDienstvorschriften && currentUser) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center px-4">
+        <div className="w-full max-w-lg">
+          <Card className="shadow-lg bg-card border-border">
+            <CardHeader className="text-center">
+              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                <ScrollText className="h-8 w-8 text-primary" />
+              </div>
+              <CardTitle className="text-2xl font-bold text-card-foreground">Dienstvorschriften</CardTitle>
+              <p className="text-muted-foreground">
+                Willkommen {currentUser.username}! Bitte lesen und akzeptieren Sie die Dienstvorschriften, bevor Sie fortfahren.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="bg-muted/50 rounded-lg p-4 max-h-64 overflow-y-auto text-sm text-muted-foreground space-y-3 border border-border">
+                <h3 className="font-semibold text-foreground">1. Professionelles Verhalten</h3>
+                <p>Respektvoller und hoeflicher Umgang mit Gaesten und Kollegen. Puenktlichkeit ist zwingend erforderlich (mindestens 15 Minuten vor Schichtbeginn). Diskretion und Vertraulichkeit bei sensiblen Informationen.</p>
+                
+                <h3 className="font-semibold text-foreground">2. Uniform und Erscheinung</h3>
+                <p>Uniform muss sauber und in gutem Zustand sein. Geschlossene, rutschfeste Schuhe sind Pflicht. Haare muessen gebunden oder kurz sein. Nametag muss waehrend der gesamten Schicht getragen werden.</p>
+                
+                <h3 className="font-semibold text-foreground">3. Hygiene und Gesundheit</h3>
+                <p>Regelmaessiges Haendewaschen vor und nach jeder Taetigkeit. Im Falle von Krankheit (besonders Magen-Darm) Dienst nicht antreten. Wunden und Schnitte muessen abgedeckt sein.</p>
+                
+                <h3 className="font-semibold text-foreground">4. Service-Standards</h3>
+                <p>Gaeste werden innerhalb von 2 Minuten nach dem Sitzen begruesst. Auf Beschwerden ruhig und professionell reagieren. Bestellungen werden mindestens zu zweit wiederholt zur Kontrolle.</p>
+                
+                <h3 className="font-semibold text-foreground">5. Arbeitszeitregelungen</h3>
+                <p>Krankheitsmeldung spaetestens 2 Stunden vor Schichtbeginn. Aerztliches Attest ab 3. Fehltag erforderlich. Unentschuldigtes Fehlen hat ernsthafte Konsequenzen.</p>
+                
+                <h3 className="font-semibold text-foreground">6. Nutzung des Admin-Panels</h3>
+                <p>Das Admin-Panel darf nur fuer dienstliche Zwecke verwendet werden. Missbrauch von Berechtigungen fuehrt zu Konsequenzen.</p>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <Checkbox
+                  id="accept-dienstvorschriften"
+                  checked={dienstvorschriftenChecked}
+                  onCheckedChange={(checked) => setDienstvorschriftenChecked(checked === true)}
+                />
+                <label htmlFor="accept-dienstvorschriften" className="text-sm text-foreground leading-snug cursor-pointer">
+                  Ich habe die Dienstvorschriften gelesen und akzeptiere alle Regeln und Bedingungen.
+                </label>
+              </div>
+
+              {error && (
+                <div className="flex items-center gap-2 text-red-600 text-sm">
+                  <AlertCircle className="h-4 w-4" />
+                  {error}
+                </div>
+              )}
+
+              <Button
+                onClick={handleAcceptDienstvorschriften}
+                className="w-full bg-primary hover:bg-primary/80 text-primary-foreground"
+                disabled={!dienstvorschriftenChecked}
+              >
+                <Shield className="h-4 w-4 mr-2" />
+                Dienstvorschriften akzeptieren und fortfahren
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
+  }
+
+  // Passwort aendern Screen
+  if (showPasswordChange) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center px-4">
+        <div className="w-full max-w-md">
+          <Card className="shadow-lg bg-card border-border">
+            <CardHeader className="text-center">
+              <CardTitle className="text-2xl font-bold text-card-foreground">Passwort aendern</CardTitle>
+              <p className="text-muted-foreground">Sie muessen Ihr Passwort vor dem ersten Login aendern</p>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handlePasswordChange} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="newPassword">Neues Passwort</Label>
+                  <Input
+                    id="newPassword"
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Neues Passwort eingeben"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Passwort bestaetigen</Label>
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Passwort wiederholen"
+                    required
+                  />
+                </div>
+
+                {error && (
+                  <div className="flex items-center gap-2 text-red-600 text-sm">
+                    <AlertCircle className="h-4 w-4" />
+                    {error}
+                  </div>
+                )}
+
+                <Button type="submit" className="w-full bg-primary hover:bg-primary/80 text-primary-foreground">
+                  Passwort aendern
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
+  }
+
+  // Login Screen
+  return (
+    <div className="min-h-screen bg-background flex items-center justify-center px-4">
+      <div className="w-full max-w-md space-y-4">
+        <Card className="shadow-lg bg-card border-border">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl font-bold text-card-foreground flex items-center justify-center gap-2">
+              <LogIn className="h-6 w-6 text-primary" />
+              Mitarbeiter Login
+            </CardTitle>
+            <p className="text-muted-foreground">Melden Sie sich an, um das Mitarbeiter-Panel zu verwenden</p>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Discord Login */}
+            <Button
+              onClick={() => {
+                window.location.href = "/api/auth/discord?returnTo=/login"
+              }}
+              className="w-full bg-[#5865F2] hover:bg-[#4752C4] text-white py-6 text-lg"
+              disabled={isLoading}
+            >
+              <svg className="h-5 w-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z" />
+              </svg>
+              Mit Discord anmelden
+            </Button>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-border" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">oder mit Benutzername</span>
+              </div>
+            </div>
+
+            {/* Username/Password Login */}
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="username">Benutzername</Label>
+                <Input
+                  id="username"
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Benutzername eingeben"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="password">Passwort</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Passwort eingeben"
+                  required
+                />
+              </div>
+
+              {error && (
+                <div className="flex items-center gap-2 text-red-600 text-sm">
+                  <AlertCircle className="h-4 w-4" />
+                  {error}
+                </div>
+              )}
+
+              <Button
+                type="submit"
+                className="w-full bg-primary hover:bg-primary/80 text-primary-foreground"
+                disabled={isLoading}
+              >
+                {isLoading ? "Anmelden..." : "Anmelden"}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
+}
