@@ -7,12 +7,14 @@ export async function GET(request: NextRequest) {
   const state = searchParams.get("state") || "/bestellen"
 
   // common cookie options for clearing data
+  const isSecure = request.url.startsWith("https://")
   const deleteOptions = {
     httpOnly: false,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax" as const,
+    secure: isSecure,
+    sameSite: isSecure ? "none" as const : "lax" as const,
     maxAge: 0,
     path: "/",
+    domain: new URL(request.url).hostname,
   }
 
   // clear any discord-related cookie present in the request
@@ -177,16 +179,15 @@ export async function GET(request: NextRequest) {
     // expire even when the browser keeps them across restarts.
     const TWELVE_HOURS = 60 * 60 * 12
     
-    // Check if we're running on HTTPS
-    const isSecure = request.url.startsWith("https://")
     console.log("[v0] Setting cookies - isSecure:", isSecure, "url:", request.url)
     
     const cookieOptions = {
       httpOnly: false,
       secure: isSecure,
-      sameSite: "lax" as const,
+      sameSite: isSecure ? "none" as const : "lax" as const,
       path: "/",
       maxAge: TWELVE_HOURS,
+      domain: new URL(request.url).hostname,
     }
 
     clearCookies(response)
