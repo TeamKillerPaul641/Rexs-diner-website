@@ -1,20 +1,27 @@
 import { NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
+import { createClient as createSupabaseClient } from "@supabase/supabase-js"
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const returnTo = searchParams.get("returnTo") || "/bestellen"
 
-  const supabase = await createClient()
-  if (!supabase) {
+  // Use service role to bypass RLS
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  
+  if (!supabaseUrl || !supabaseServiceKey) {
     return NextResponse.json({ error: "Datenbankverbindung fehlgeschlagen." }, { status: 500 })
   }
+  
+  const supabase = createSupabaseClient(supabaseUrl, supabaseServiceKey)
 
   const { data, error } = await supabase
     .from("website_config")
     .select("config_value")
     .eq("config_key", "discord_bot")
     .single()
+
+  console.log("[v0] Discord auth - config query result:", JSON.stringify(data), "error:", JSON.stringify(error))
 
   if (error || !data) {
     return NextResponse.json({ error: "Discord Bot Konfiguration nicht gefunden." }, { status: 500 })
