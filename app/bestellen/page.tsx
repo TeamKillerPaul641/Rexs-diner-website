@@ -30,6 +30,7 @@ export default function BestellenPage() {
   const [cart, setCart] = useState<CartItem[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [discordUser, setDiscordUser] = useState<{ id: string; username: string; avatar: string } | null>(null)
+  const [isCheckingSession, setIsCheckingSession] = useState(true)
   const [customerInfo, setCustomerInfo] = useState({
     name: "",
     discordId: "",
@@ -90,6 +91,7 @@ export default function BestellenPage() {
       
       const session = getDiscordSession()
       console.log("[v0] Discord session check:", session)
+      console.log("[v0] All cookies:", document.cookie)
       
       if (session) {
         setDiscordUser(session)
@@ -112,9 +114,24 @@ export default function BestellenPage() {
           }))
         }
       }
+      
+      // Mark session check as complete
+      setIsCheckingSession(false)
     }
     loadSessionAndProfile()
   }, [])
+
+  // Warten bis Session geprüft wurde
+  if (isCheckingSession) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="text-muted-foreground">Anmeldung wird geprüft...</p>
+        </div>
+      </div>
+    )
+  }
 
   // Wenn nicht eingeloggt, Login-Screen anzeigen
   if (!discordUser) {
