@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
   const deleteOptions = {
     httpOnly: false,
     secure: isSecure,
-    sameSite: "lax" as const,
+    sameSite: isSecure ? "none" as const : "lax" as const,
     maxAge: 0,
     path: "/",
   }
@@ -183,7 +183,7 @@ export async function GET(request: NextRequest) {
     const cookieOptions = {
       httpOnly: false,
       secure: isSecure,
-      sameSite: "lax" as const,
+      sameSite: isSecure ? "none" as const : "lax" as const,
       path: "/",
       // maxAge: TWELVE_HOURS, // Remove maxAge to make session cookies
     }

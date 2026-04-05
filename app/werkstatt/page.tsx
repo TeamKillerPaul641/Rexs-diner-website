@@ -123,7 +123,7 @@ export default function WerkstattPage() {
   useEffect(() => {
     const loadSession = async () => {
       // Small delay to ensure cookies are available after redirect
-      await new Promise(resolve => setTimeout(resolve, 500))
+      await new Promise(resolve => setTimeout(resolve, 1000))
       
       const session = getDiscordSession()
       if (session) {
