@@ -18,13 +18,17 @@ function getCookie(name: string): string {
 }
 
 function getCurrentSuffix(): string {
-  return getCookie("discord_current_suffix")
+  const suffix = getCookie("discord_current_suffix")
+  console.log("[v0] getCurrentSuffix - suffix:", suffix)
+  return suffix
 }
 
 export function getDiscordSession(): DiscordSession | null {
   const suffix = getCurrentSuffix()
+  console.log("[v0] getDiscordSession - suffix:", suffix)
   if (!suffix) return null
   const id = getCookie(`discord_id_${suffix}`)
+  console.log("[v0] getDiscordSession - id:", id)
   if (!id) return null
 
   return {

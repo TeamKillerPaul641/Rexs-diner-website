@@ -11,10 +11,9 @@ export async function GET(request: NextRequest) {
   const deleteOptions = {
     httpOnly: false,
     secure: isSecure,
-    sameSite: isSecure ? "none" as const : "lax" as const,
+    sameSite: "lax" as const,
     maxAge: 0,
     path: "/",
-    domain: new URL(request.url).hostname,
   }
 
   // clear any discord-related cookie present in the request
@@ -184,20 +183,21 @@ export async function GET(request: NextRequest) {
     const cookieOptions = {
       httpOnly: false,
       secure: isSecure,
-      sameSite: isSecure ? "none" as const : "lax" as const,
+      sameSite: "lax" as const,
       path: "/",
-      maxAge: TWELVE_HOURS,
-      domain: new URL(request.url).hostname,
+      // maxAge: TWELVE_HOURS, // Remove maxAge to make session cookies
     }
 
     clearCookies(response)
     const newSuffix = Date.now().toString()
     response.cookies.set("discord_current_suffix", newSuffix, cookieOptions)
+    console.log("[v0] Set cookie discord_current_suffix:", newSuffix)
 
     // set discord data cookies for client
     response.cookies.set(`discord_id_${newSuffix}`, userData.id, cookieOptions)
     response.cookies.set(`discord_username_${newSuffix}`, userData.username, cookieOptions)
     response.cookies.set(`discord_avatar_${newSuffix}`, avatarUrl, cookieOptions)
+    console.log("[v0] Set discord cookies for user:", userData.id, userData.username)
 
     return response
   } catch (error) {
