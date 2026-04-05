@@ -1051,7 +1051,7 @@ export const saveMenuRating = async (rating: MenuItemRating): Promise<boolean> =
   const supabase = createClient()
   if (!supabase) return false
 
-  const { error } = await supabase.from("menu_item_ratings").insert({
+  const { error } = await supabase.from("menu_ratings").insert({
     menu_item_id: rating.menuItemId,
     rating: rating.rating,
     comment: rating.comment,
@@ -1071,7 +1071,7 @@ export const getMenuRatings = async (menuItemId?: number): Promise<MenuItemRatin
   const supabase = createClient()
   if (!supabase) return []
 
-  let query = supabase.from("menu_item_ratings").select("*")
+  let query = supabase.from("menu_ratings").select("*")
 
   if (menuItemId !== undefined) {
     query = query.eq("menu_item_id", menuItemId)
@@ -1097,7 +1097,7 @@ export const deleteMenuRating = async (timestamp: number): Promise<boolean> => {
   const supabase = createClient()
   if (!supabase) return false
 
-  const { error } = await supabase.from("menu_item_ratings").delete().eq("timestamp", timestamp)
+  const { error } = await supabase.from("menu_ratings").delete().eq("timestamp", timestamp)
 
   if (error) {
     console.error("Error deleting menu rating:", error)
@@ -1111,7 +1111,7 @@ export const deleteAllMenuRatings = async (): Promise<boolean> => {
   const supabase = createClient()
   if (!supabase) return false
 
-  const { error } = await supabase.from("menu_item_ratings").delete().neq("timestamp", -1)
+  const { error } = await supabase.from("menu_ratings").delete().neq("timestamp", -1)
 
   if (error) {
     console.error("Error deleting all menu ratings:", error)
