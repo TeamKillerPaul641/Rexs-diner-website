@@ -5,15 +5,17 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const returnTo = searchParams.get("returnTo") || "/bestellen"
 
-  // Use service role to bypass RLS
+  // Try service role first, fall back to anon key
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   
-  if (!supabaseUrl || !supabaseServiceKey) {
-    return NextResponse.json({ error: "Datenbankverbindung fehlgeschlagen." }, { status: 500 })
+  console.log("[v0] Discord auth - supabaseUrl:", !!supabaseUrl, "supabaseKey:", !!supabaseKey)
+  
+  if (!supabaseUrl || !supabaseKey) {
+    return NextResponse.json({ error: "Datenbankverbindung fehlgeschlagen. Env vars fehlen." }, { status: 500 })
   }
   
-  const supabase = createSupabaseClient(supabaseUrl, supabaseServiceKey)
+  const supabase = createSupabaseClient(supabaseUrl, supabaseKey)
 
   const { data, error } = await supabase
     .from("website_config")
