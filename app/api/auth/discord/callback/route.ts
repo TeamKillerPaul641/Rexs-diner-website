@@ -14,6 +14,7 @@ export async function GET(request: NextRequest) {
     sameSite: isSecure ? "none" as const : "lax" as const,
     maxAge: 0,
     path: "/",
+    domain: "rexs-diner-website.vercel.app",
   }
 
   // clear any discord-related cookie present in the request
@@ -185,7 +186,8 @@ export async function GET(request: NextRequest) {
       secure: isSecure,
       sameSite: isSecure ? "none" as const : "lax" as const,
       path: "/",
-      // maxAge: TWELVE_HOURS, // Remove maxAge to make session cookies
+      domain: "rexs-diner-website.vercel.app",
+      maxAge: TWELVE_HOURS,
     }
 
     clearCookies(response)
