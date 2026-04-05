@@ -10,13 +10,16 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { LogIn, AlertCircle, Shield, ScrollText } from "lucide-react"
-import { 
-  type User, 
+import {
+  type User,
   authenticateUser,
   authenticateUserByDiscord,
+  getUsersByDiscordId,
   acceptDienstvorschriften,
   setUserSession,
-  updateUser
+  updateUser,
+  DEFAULT_RANKS,
+  getAllRanks
 } from "@/lib/user-data"
 import { getDiscordSession } from "@/lib/discord-session"
 
@@ -31,6 +34,9 @@ export default function LoginPage() {
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [currentUser, setCurrentUser] = useState<User | null>(null)
+  const [multipleUsers, setMultipleUsers] = useState<User[]>([])
+  const [selectedUser, setSelectedUser] = useState<User | null>(null)
+  const [allRanks, setAllRanks] = useState<{ [key: string]: any }>(DEFAULT_RANKS)
   const router = useRouter()
 
   // Discord OAuth Callback aus Cookies verarbeiten
@@ -41,35 +47,69 @@ export default function LoginPage() {
     }
   }, [])
 
-  const handleDiscordLogin = async (discordId: string, discordUsername: string) => {
+  // Load all ranks on mount
+  useEffect(() => {
+    const loadRanks = async () => {
+      const ranks = await getAllRanks()
+      setAllRanks(ranks)
+    }
+    loadRanks()
+  }, [])
+
+  const processUserLogin = async (user: User) => {
+    if (user.mustChangePassword || user.isTemporaryPassword) {
+      setCurrentUser(user)
+      setShowPasswordChange(true)
+      setIsLoading(false)
+      return
+    }
+
+    if (!user.dienstvorschriftenAccepted) {
+      setCurrentUser(user)
+      setShowDienstvorschriften(true)
+      setIsLoading(false)
+      return
+    }
+
+    setUserSession(user)
+    router.push("/admin")
+  }
+
+  const handleSelectUser = async () => {
+    console.log("handleSelectUser called with selectedUser:", selectedUser)
+    if (!selectedUser) {
+      console.log("No selectedUser, returning")
+      return
+    }
+    setIsLoading(true)
+    setError("")
+    console.log("Processing login for user:", selectedUser.username)
+    setMultipleUsers([]) // Clear multiple users selection
+    await processUserLogin(selectedUser)
+    setIsLoading(false)
+  }
+
+  async function handleDiscordLogin(discordId: string, discordUsername: string) {
     setIsLoading(true)
     setError("")
 
-    const user = await authenticateUserByDiscord(discordId)
+    const users = await getUsersByDiscordId(discordId)
 
-    if (user) {
-
-      if (user.mustChangePassword || user.isTemporaryPassword) {
-        setCurrentUser(user)
-        setShowPasswordChange(true)
-        setIsLoading(false)
-        return
-      }
-
-      if (!user.dienstvorschriftenAccepted) {
-        setCurrentUser(user)
-        setShowDienstvorschriften(true)
-        setIsLoading(false)
-        return
-      }
-
-      setUserSession(user)
-      router.push("/admin")
-    } else {
+    if (users.length === 0) {
       setError(`Kein Mitarbeiter-Account mit Discord ID ${discordId} gefunden.`)
+      setIsLoading(false)
+      return
     }
 
-    setIsLoading(false)
+    if (users.length === 1) {
+      const user = users[0]
+      await processUserLogin(user)
+    } else {
+      // Mehrere User gefunden, Auswahl anzeigen
+      setMultipleUsers(users)
+      setSelectedUser(null)
+      setIsLoading(false)
+    }
   }
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -145,7 +185,7 @@ export default function LoginPage() {
 
         if (success) {
           const updatedUser = { ...currentUser, password: newPassword, mustChangePassword: false, isTemporaryPassword: false }
-          
+
           if (!updatedUser.dienstvorschriftenAccepted) {
             setCurrentUser(updatedUser)
             setShowPasswordChange(false)
@@ -156,13 +196,68 @@ export default function LoginPage() {
           setUserSession(updatedUser)
           router.push("/admin")
         } else {
-          setError("Fehler beim Aendern des Passworts")
+          setError("Fehler beim ändern des Passworts")
         }
       } catch (err) {
         console.error("Password change error:", err)
         setError("Ein Fehler ist aufgetreten")
       }
     }
+  }
+
+  // User Auswahl Screen bei mehreren Accounts
+  if (multipleUsers.length > 0) {
+    console.log("Rendering multiple users screen")
+    console.log("multipleUsers:", multipleUsers)
+    console.log("selectedUser:", selectedUser)
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center px-4">
+        <div className="w-full max-w-md">
+          <Card className="shadow-lg bg-card border-border">
+            <CardHeader className="text-center">
+              <CardTitle className="text-2xl font-bold text-card-foreground">Account auswählen </CardTitle>
+              <p className="text-muted-foreground">Mehrere Accounts mit Ihrer Discord ID gefunden. Bitte wählen  Sie einen aus.</p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {multipleUsers.map((user) => (
+                <button
+                  key={user.id}
+                  type="button"
+                  className={`w-full p-4 border rounded-lg cursor-pointer transition-colors text-left ${selectedUser?.id === user.id
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-primary/50"
+                    }`}
+                  onClick={() => {
+                    console.log("Clicked user:", user.username, "ID:", user.id)
+                    console.log("Current selectedUser:", selectedUser)
+                    setSelectedUser(user)
+                    console.log("New selectedUser should be:", user)
+                  }}
+                >
+                  <div className="font-medium">{user.username}</div>
+                  <div className="text-sm text-muted-foreground">Gruppe: {allRanks[user.group]?.name || user.group}</div>
+                </button>
+              ))}
+
+              {error && (
+                <div className="flex items-center gap-2 text-red-600 text-sm">
+                  <AlertCircle className="h-4 w-4" />
+                  {error}
+                </div>
+              )}
+
+              <Button
+                onClick={handleSelectUser}
+                className="w-full bg-primary hover:bg-primary/80 text-primary-foreground"
+                disabled={!selectedUser || isLoading}
+              >
+                {isLoading ? "Wird geladen..." : "Account auswählen "}
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
   }
 
   // Dienstvorschriften Screen
@@ -184,19 +279,19 @@ export default function LoginPage() {
               <div className="bg-muted/50 rounded-lg p-4 max-h-64 overflow-y-auto text-sm text-muted-foreground space-y-3 border border-border">
                 <h3 className="font-semibold text-foreground">1. Professionelles Verhalten</h3>
                 <p>Respektvoller und hoeflicher Umgang mit Gaesten und Kollegen. Puenktlichkeit ist zwingend erforderlich (mindestens 15 Minuten vor Schichtbeginn). Diskretion und Vertraulichkeit bei sensiblen Informationen.</p>
-                
+
                 <h3 className="font-semibold text-foreground">2. Uniform und Erscheinung</h3>
                 <p>Uniform muss sauber und in gutem Zustand sein. Geschlossene, rutschfeste Schuhe sind Pflicht. Haare muessen gebunden oder kurz sein. Nametag muss waehrend der gesamten Schicht getragen werden.</p>
-                
+
                 <h3 className="font-semibold text-foreground">3. Hygiene und Gesundheit</h3>
                 <p>Regelmaessiges Haendewaschen vor und nach jeder Taetigkeit. Im Falle von Krankheit (besonders Magen-Darm) Dienst nicht antreten. Wunden und Schnitte muessen abgedeckt sein.</p>
-                
+
                 <h3 className="font-semibold text-foreground">4. Service-Standards</h3>
                 <p>Gaeste werden innerhalb von 2 Minuten nach dem Sitzen begruesst. Auf Beschwerden ruhig und professionell reagieren. Bestellungen werden mindestens zu zweit wiederholt zur Kontrolle.</p>
-                
+
                 <h3 className="font-semibold text-foreground">5. Arbeitszeitregelungen</h3>
                 <p>Krankheitsmeldung spaetestens 2 Stunden vor Schichtbeginn. Aerztliches Attest ab 3. Fehltag erforderlich. Unentschuldigtes Fehlen hat ernsthafte Konsequenzen.</p>
-                
+
                 <h3 className="font-semibold text-foreground">6. Nutzung des Admin-Panels</h3>
                 <p>Das Admin-Panel darf nur fuer dienstliche Zwecke verwendet werden. Missbrauch von Berechtigungen fuehrt zu Konsequenzen.</p>
               </div>
@@ -234,15 +329,15 @@ export default function LoginPage() {
     )
   }
 
-  // Passwort aendern Screen
+  // Passwort ändern Screen
   if (showPasswordChange) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center px-4">
         <div className="w-full max-w-md">
           <Card className="shadow-lg bg-card border-border">
             <CardHeader className="text-center">
-              <CardTitle className="text-2xl font-bold text-card-foreground">Passwort aendern</CardTitle>
-              <p className="text-muted-foreground">Sie muessen Ihr Passwort vor dem ersten Login aendern</p>
+              <CardTitle className="text-2xl font-bold text-card-foreground">Passwort ändern</CardTitle>
+              <p className="text-muted-foreground">Sie muessen Ihr Passwort vor dem ersten Login ändern</p>
             </CardHeader>
             <CardContent>
               <form onSubmit={handlePasswordChange} className="space-y-4">
@@ -278,7 +373,7 @@ export default function LoginPage() {
                 )}
 
                 <Button type="submit" className="w-full bg-primary hover:bg-primary/80 text-primary-foreground">
-                  Passwort aendern
+                  Passwort ändern
                 </Button>
               </form>
             </CardContent>

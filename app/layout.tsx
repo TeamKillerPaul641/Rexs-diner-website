@@ -22,7 +22,6 @@ export const metadata: Metadata = {
     shortcut: "/images/rex-dinner-logo.png",
     apple: "/images/rex-dinner-logo.png",
   },
-    generator: 'v0.app'
 }
 
 export default function RootLayout({
