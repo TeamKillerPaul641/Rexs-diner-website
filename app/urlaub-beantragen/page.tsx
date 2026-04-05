@@ -23,10 +23,16 @@ export default function UrlaubBeantragenPage() {
 
   // Discord Session aus Cookies laden
   useEffect(() => {
-    const session = getDiscordSession()
-    if (session) {
-      setDiscordUser(session)
+    const loadSession = async () => {
+      // Small delay to ensure cookies are available after redirect
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      
+      const session = getDiscordSession()
+      if (session) {
+        setDiscordUser(session)
+      }
     }
+    loadSession()
   }, [])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {

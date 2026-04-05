@@ -41,10 +41,16 @@ export default function LoginPage() {
 
   // Discord OAuth Callback aus Cookies verarbeiten
   useEffect(() => {
-    const session = getDiscordSession()
-    if (session) {
-      handleDiscordLogin(session.id, session.username || "")
+    const loadSession = async () => {
+      // Small delay to ensure cookies are available after redirect
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      
+      const session = getDiscordSession()
+      if (session) {
+        handleDiscordLogin(session.id, session.username || "")
+      }
     }
+    loadSession()
   }, [])
 
   // Load all ranks on mount

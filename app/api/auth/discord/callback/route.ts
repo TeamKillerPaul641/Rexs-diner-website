@@ -7,12 +7,14 @@ export async function GET(request: NextRequest) {
   const state = searchParams.get("state") || "/bestellen"
 
   // common cookie options for clearing data
+  const isSecure = request.url.startsWith("https://")
   const deleteOptions = {
     httpOnly: false,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax" as const,
+    secure: isSecure,
+    sameSite: isSecure ? "none" as const : "lax" as const,
     maxAge: 0,
     path: "/",
+    domain: "rexs-diner-website.vercel.app",
   }
 
   // clear any discord-related cookie present in the request
@@ -177,26 +179,27 @@ export async function GET(request: NextRequest) {
     // expire even when the browser keeps them across restarts.
     const TWELVE_HOURS = 60 * 60 * 12
     
-    // Check if we're running on HTTPS
-    const isSecure = request.url.startsWith("https://")
     console.log("[v0] Setting cookies - isSecure:", isSecure, "url:", request.url)
     
     const cookieOptions = {
       httpOnly: false,
       secure: isSecure,
-      sameSite: "lax" as const,
+      sameSite: isSecure ? "none" as const : "lax" as const,
       path: "/",
+      domain: "rexs-diner-website.vercel.app",
       maxAge: TWELVE_HOURS,
     }
 
     clearCookies(response)
     const newSuffix = Date.now().toString()
     response.cookies.set("discord_current_suffix", newSuffix, cookieOptions)
+    console.log("[v0] Set cookie discord_current_suffix:", newSuffix)
 
     // set discord data cookies for client
     response.cookies.set(`discord_id_${newSuffix}`, userData.id, cookieOptions)
     response.cookies.set(`discord_username_${newSuffix}`, userData.username, cookieOptions)
     response.cookies.set(`discord_avatar_${newSuffix}`, avatarUrl, cookieOptions)
+    console.log("[v0] Set discord cookies for user:", userData.id, userData.username)
 
     return response
   } catch (error) {

@@ -2,6 +2,7 @@
 
 import type React from "react"
 import { useState, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -13,6 +14,7 @@ import { saveReservation, getUserProfile, saveUserProfile, type UserProfile } fr
 import { getDiscordSession } from "@/lib/discord-session"
 
 export default function ReservierungPage() {
+  const searchParams = useSearchParams()
   const [discordUser, setDiscordUser] = useState<{ id: string; username: string; avatar: string } | null>(null)
   const [formData, setFormData] = useState({
     date: "",
@@ -28,9 +30,44 @@ export default function ReservierungPage() {
   const [pendingReservation, setPendingReservation] = useState<any>(null)
   const [error, setError] = useState<string | null>(null)
 
+  // Handle error from URL params
+  useEffect(() => {
+    const errorParam = searchParams.get("error")
+    if (errorParam) {
+      let errorMessage = "Ein unbekannter Fehler ist aufgetreten."
+      switch (errorParam) {
+        case "no_code":
+          errorMessage = "OAuth-Code fehlt. Bitte versuchen Sie es erneut."
+          break
+        case "token_failed":
+          errorMessage = "Fehler beim Abrufen des Tokens von Discord."
+          break
+        case "user_failed":
+          errorMessage = "Fehler beim Abrufen der Benutzerdaten von Discord."
+          break
+        case "db_error":
+          errorMessage = "Datenbankfehler. Bitte versuchen Sie es später erneut."
+          break
+        case "not_configured":
+          errorMessage = "Discord ist nicht konfiguriert. Bitte wenden Sie sich an den Administrator."
+          break
+        case "invalid_config":
+          errorMessage = "Ungültige Discord-Konfiguration."
+          break
+        case "server_error":
+          errorMessage = "Serverfehler. Bitte versuchen Sie es später erneut."
+          break
+      }
+      setError(errorMessage)
+    }
+  }, [searchParams])
+
   // Discord Session aus Cookies laden
   useEffect(() => {
     const loadSessionAndProfile = async () => {
+      // Small delay to ensure cookies are available after redirect
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      
       const session = getDiscordSession()
       if (session) {
         setDiscordUser(session)
@@ -59,6 +96,32 @@ export default function ReservierungPage() {
 
   // Wenn nicht eingeloggt, Login-Screen anzeigen
   if (!discordUser) {
+    if (error) {
+      return (
+        <div className="min-h-screen bg-background flex items-center justify-center">
+          <Card className="max-w-md w-full mx-4 bg-card border-border">
+            <CardContent className="p-8 text-center space-y-6">
+              <div className="w-20 h-20 rounded-full bg-red-500/10 flex items-center justify-center mx-auto">
+                <CheckCircle className="h-10 w-10 text-red-500" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-card-foreground mb-2">Fehler bei der Anmeldung</h2>
+                <p className="text-muted-foreground">{error}</p>
+              </div>
+              <Button
+                onClick={() => {
+                  window.location.href = "/api/auth/discord?returnTo=/reservierung"
+                }}
+                className="w-full bg-[#5865F2] hover:bg-[#4752C4] text-white py-6 text-lg"
+              >
+                <LogIn className="h-5 w-5 mr-2" />
+                Erneut versuchen
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      )
+    }
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Card className="max-w-md w-full mx-4 bg-card border-border">

@@ -121,14 +121,20 @@ export default function WerkstattPage() {
   const [pendingService, setPendingService] = useState<Service | null>(null)
 
   useEffect(() => {
-    const session = getDiscordSession()
-    if (session) {
-      setDiscordUser(session)
-      setCustomerInfo((prev) => ({
-        ...prev,
-        name: session.username || prev.name,
-      }))
+    const loadSession = async () => {
+      // Small delay to ensure cookies are available after redirect
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      
+      const session = getDiscordSession()
+      if (session) {
+        setDiscordUser(session)
+        setCustomerInfo((prev) => ({
+          ...prev,
+          name: session.username || prev.name,
+        }))
+      }
     }
+    loadSession()
   }, [])
 
   // load discount codes once on mount
