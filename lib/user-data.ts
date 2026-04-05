@@ -1040,6 +1040,7 @@ export const saveCustomRanks = async (ranks: { [key: string]: CustomRank }): Pro
 
 // Menu Item Ratings - Essen Bewertungen
 export type MenuItemRating = {
+  id?: number
   menuItemId: number
   rating: number
   comment: string
@@ -1077,7 +1078,7 @@ export const getMenuRatings = async (menuItemId?: number): Promise<MenuItemRatin
     query = query.eq("menu_item_id", menuItemId)
   }
 
-  const { data, error } = await query.order("timestamp", { ascending: false })
+  const { data, error } = await query.order("created_at", { ascending: false })
 
   if (error) {
     console.error("Error fetching menu ratings:", error)
@@ -1089,15 +1090,16 @@ export const getMenuRatings = async (menuItemId?: number): Promise<MenuItemRatin
     rating: r.rating,
     comment: r.comment,
     customerName: r.customer_name,
-    timestamp: r.timestamp,
+    timestamp: r.created_at ? new Date(r.created_at).getTime() : r.id,
+    id: r.id,
   }))
 }
 
-export const deleteMenuRating = async (timestamp: number): Promise<boolean> => {
+export const deleteMenuRating = async (id: number): Promise<boolean> => {
   const supabase = createClient()
   if (!supabase) return false
 
-  const { error } = await supabase.from("menu_ratings").delete().eq("timestamp", timestamp)
+  const { error } = await supabase.from("menu_ratings").delete().eq("id", id)
 
   if (error) {
     console.error("Error deleting menu rating:", error)
@@ -1111,7 +1113,7 @@ export const deleteAllMenuRatings = async (): Promise<boolean> => {
   const supabase = createClient()
   if (!supabase) return false
 
-  const { error } = await supabase.from("menu_ratings").delete().neq("timestamp", -1)
+  const { error } = await supabase.from("menu_ratings").delete().neq("id", -1)
 
   if (error) {
     console.error("Error deleting all menu ratings:", error)

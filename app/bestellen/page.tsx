@@ -90,9 +90,6 @@ export default function BestellenPage() {
       await new Promise(resolve => setTimeout(resolve, 100))
       
       const session = getDiscordSession()
-      console.log("[v0] Discord session check:", session)
-      console.log("[v0] All cookies:", document.cookie)
-      
       if (session) {
         setDiscordUser(session)
         

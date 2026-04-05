@@ -23,13 +23,8 @@ function getCurrentSuffix(): string {
 
 export function getDiscordSession(): DiscordSession | null {
   const suffix = getCurrentSuffix()
-  console.log("[v0] Discord session - suffix:", suffix)
-  console.log("[v0] Discord session - all cookies:", typeof document !== "undefined" ? document.cookie : "SSR")
-  
   if (!suffix) return null
   const id = getCookie(`discord_id_${suffix}`)
-  console.log("[v0] Discord session - id:", id)
-  
   if (!id) return null
 
   return {

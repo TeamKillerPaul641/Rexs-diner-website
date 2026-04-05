@@ -30,18 +30,20 @@ export async function GET(request: NextRequest) {
     return res
   }
 
-  // Fetch discord_bot config using service role to bypass RLS
+  // Fetch discord_bot config - try service role first, fall back to anon key
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   
-  if (!supabaseUrl || !supabaseServiceKey) {
-    console.log("[v0] Missing Supabase credentials - url:", !!supabaseUrl, "serviceKey:", !!supabaseServiceKey)
+  console.log("[v0] Callback - supabaseUrl:", !!supabaseUrl, "supabaseKey:", !!supabaseKey)
+  
+  if (!supabaseUrl || !supabaseKey) {
+    console.log("[v0] Missing Supabase credentials")
     const res = NextResponse.redirect(new URL(`${state}?error=db_error`, request.url))
     clearCookies(res)
     return res
   }
   
-  const supabase = createSupabaseClient(supabaseUrl, supabaseServiceKey)
+  const supabase = createSupabaseClient(supabaseUrl, supabaseKey)
 
   const { data: configData, error: configError } = await supabase
     .from("website_config")
