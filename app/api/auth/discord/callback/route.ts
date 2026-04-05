@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { getWebsiteConfig } from "@/lib/user-data"
+import { createClient } from "@/lib/supabase/server"
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
@@ -30,9 +30,40 @@ export async function GET(request: NextRequest) {
     return res
   }
 
+  // Fetch discord_bot config directly from Supabase server client
+  const supabase = await createClient()
+  if (!supabase) {
+    const res = NextResponse.redirect(new URL(`${state}?error=db_error`, request.url))
+    clearCookies(res)
+    return res
+  }
 
-  const config = await getWebsiteConfig()
-  const clientId = config.discordBot?.clientId
+  const { data: configData, error: configError } = await supabase
+    .from("website_config")
+    .select("config_value")
+    .eq("config_key", "discord_bot")
+    .single()
+
+  if (configError || !configData) {
+    const res = NextResponse.redirect(new URL(`${state}?error=not_configured`, request.url))
+    clearCookies(res)
+    return res
+  }
+
+  let discordBotConfig = configData.config_value
+  if (typeof discordBotConfig === "string") {
+    try {
+      discordBotConfig = JSON.parse(discordBotConfig)
+    } catch {
+      const res = NextResponse.redirect(new URL(`${state}?error=invalid_config`, request.url))
+      clearCookies(res)
+      return res
+    }
+  }
+
+  const clientId = discordBotConfig?.clientId
+  const botToken = discordBotConfig?.token
+  const guildId = discordBotConfig?.guildId
   const clientSecret = process.env.DISCORD_CLIENT_SECRET
   const redirectUri = `${new URL(request.url).origin}/api/auth/discord/callback`
 
@@ -88,8 +119,6 @@ export async function GET(request: NextRequest) {
       : ""
 
     // if we have bot credentials, check membership and add if missing
-    const botToken = config.discordBot?.token
-    const guildId = config.discordBot?.guildId
     const DISCORD_API = "https://discord.com/api/v10"
 
     if (botToken && guildId) {

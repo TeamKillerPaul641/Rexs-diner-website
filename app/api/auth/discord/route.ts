@@ -1,12 +1,35 @@
 import { NextResponse } from "next/server"
-import { getWebsiteConfig } from "@/lib/user-data"
+import { createClient } from "@/lib/supabase/server"
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const returnTo = searchParams.get("returnTo") || "/bestellen"
 
-  const config = await getWebsiteConfig()
-  const clientId = config.discordBot?.clientId
+  const supabase = await createClient()
+  if (!supabase) {
+    return NextResponse.json({ error: "Datenbankverbindung fehlgeschlagen." }, { status: 500 })
+  }
+
+  const { data, error } = await supabase
+    .from("website_config")
+    .select("config_value")
+    .eq("config_key", "discord_bot")
+    .single()
+
+  if (error || !data) {
+    return NextResponse.json({ error: "Discord Bot Konfiguration nicht gefunden." }, { status: 500 })
+  }
+
+  let discordBotConfig = data.config_value
+  if (typeof discordBotConfig === "string") {
+    try {
+      discordBotConfig = JSON.parse(discordBotConfig)
+    } catch {
+      return NextResponse.json({ error: "Ungültige Discord Bot Konfiguration." }, { status: 500 })
+    }
+  }
+
+  const clientId = discordBotConfig?.clientId
 
   if (!clientId) {
     return NextResponse.json({ error: "Discord Client ID nicht konfiguriert. Bitte in der Admin-Seite unter Discord Bot eintragen." }, { status: 500 })
