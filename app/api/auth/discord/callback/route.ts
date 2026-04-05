@@ -166,9 +166,14 @@ export async function GET(request: NextRequest) {
     // you left off" / session-restore.  A finite maxAge guarantees they
     // expire even when the browser keeps them across restarts.
     const TWELVE_HOURS = 60 * 60 * 12
+    
+    // Check if we're running on HTTPS
+    const isSecure = request.url.startsWith("https://")
+    console.log("[v0] Setting cookies - isSecure:", isSecure, "url:", request.url)
+    
     const cookieOptions = {
       httpOnly: false,
-      secure: process.env.NODE_ENV === "production",
+      secure: isSecure,
       sameSite: "lax" as const,
       path: "/",
       maxAge: TWELVE_HOURS,

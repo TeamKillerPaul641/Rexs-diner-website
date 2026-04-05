@@ -85,7 +85,12 @@ export default function BestellenPage() {
   // Discord Session aus Cookies laden
   useEffect(() => {
     const loadSessionAndProfile = async () => {
+      // Small delay to ensure cookies are available after redirect
+      await new Promise(resolve => setTimeout(resolve, 100))
+      
       const session = getDiscordSession()
+      console.log("[v0] Discord session check:", session)
+      
       if (session) {
         setDiscordUser(session)
         
