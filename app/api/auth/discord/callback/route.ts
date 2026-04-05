@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
+import { createClient as createSupabaseClient } from "@supabase/supabase-js"
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
@@ -30,13 +30,18 @@ export async function GET(request: NextRequest) {
     return res
   }
 
-  // Fetch discord_bot config directly from Supabase server client
-  const supabase = await createClient()
-  if (!supabase) {
+  // Fetch discord_bot config using service role to bypass RLS
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  
+  if (!supabaseUrl || !supabaseServiceKey) {
+    console.log("[v0] Missing Supabase credentials - url:", !!supabaseUrl, "serviceKey:", !!supabaseServiceKey)
     const res = NextResponse.redirect(new URL(`${state}?error=db_error`, request.url))
     clearCookies(res)
     return res
   }
+  
+  const supabase = createSupabaseClient(supabaseUrl, supabaseServiceKey)
 
   const { data: configData, error: configError } = await supabase
     .from("website_config")
@@ -44,7 +49,10 @@ export async function GET(request: NextRequest) {
     .eq("config_key", "discord_bot")
     .single()
 
+  console.log("[v0] Discord config query result - data:", JSON.stringify(configData), "error:", JSON.stringify(configError))
+
   if (configError || !configData) {
+    console.log("[v0] Discord config not found or error occurred")
     const res = NextResponse.redirect(new URL(`${state}?error=not_configured`, request.url))
     clearCookies(res)
     return res
